@@ -69,17 +69,22 @@ set direction; the actual brief still governs the entry.
 
 ### Ask the agent for a small first version
 
-Run an AI agent and give it the brief. Start with the main task a user needs to
-complete so you have something concrete to review early. Here is an example of
-how to frame the work in plain English:
+Pick an AI agent whose sessions are recorded, such as Codex or Claude Code.
+Start a **new session at or after the competition opening** and give it the
+brief there. If your tool keeps no session record, use [Superbot](https://superbot.gg),
+a free client that keeps sessions the bundler reads.
+
+Start with the main task a user needs to complete so you have something concrete
+to review early. Here is an example of how to frame the work in plain English:
 
 > Read this bounty brief and identify the required deliverables. Start with the
 > smallest version that lets a user complete the main task. Explain how I can
 > check that it works. Keep track of which requirements still need attention.
 
-Save the AI transcripts as you go, including the exchanges that produced and
-changed the work. Keep private credentials and other private material out of the
-project and the conversations you plan to share.
+The agent's session log is what gets bundled as transcripts. Save/export it as
+you go, including the exchanges that produced and changed the work; never
+rebuild a session from memory. Keep private credentials and other private
+material out of the project and the conversations you plan to share.
 
 ### Try it the way a reviewer would
 
@@ -98,12 +103,79 @@ what to do first and what they should see when it works.
 
 ### Package and submit the work
 
-- Put the project in a public GitHub repository and make sure someone who isn't
-  signed in as you can open it.
-- Have the AI transcripts that wrote the project ready alongside the repo. Make
-  sure the transcript covers the work you're actually submitting.
-- Follow the bounty's entry instructions for submitting both pieces, and leave
-  yourself time to correct an inaccessible link before the deadline.
+Run the commands below from the **competition kit directory**. Replace
+`<your repository>` with the path to your project, `<file>` with your saved
+system prompt file, and `<level>` with the agent's effort level for the build.
+Replace the other `<...>` placeholders with your own values too.
+
+1. **Create your wallet file.** This Solana keypair signs you in, signs your
+   entry, and is your payout wallet. Create `wallet.json` in solana-keygen JSON
+   format and restrict its permissions:
+
+   ```sh
+   node -e "const k=require('node:crypto').generateKeyPairSync('ed25519').privateKey.export({format:'jwk'});require('node:fs').writeFileSync(process.argv[1],JSON.stringify([...Buffer.from(k.d,'base64url'),...Buffer.from(k.x,'base64url')]),{mode:0o600,flag:'wx'})" wallet.json
+   chmod 600 wallet.json
+   ```
+
+   Keep this file private and out of your public repo and shared transcripts.
+
+2. **Sign in once at <https://make.fun>.** To connect this keypair to your
+   existing make.fun account, run:
+
+   ```sh
+   node cli/makefun.mjs login --keypair wallet.json --origin https://make.fun
+   ```
+
+   Approve the printed link/code to finish signing in. If you want to create a
+   separate wallet-only account instead, use:
+
+   ```sh
+   node cli/makefun.mjs register --keypair wallet.json --origin https://make.fun
+   ```
+
+   The API key lasts 30 days and is stored in `~/.makefun/credentials`.
+
+   **"Linked GitHub" means the GitHub account linked to your make.fun account:**
+   you signed in with GitHub, or linked it on your make.fun profile page. Check
+   that your profile shows the right GitHub account. The repo must be created
+   under **that account**, after the competition opened on **18 November 2026
+   at 10:30 UTC**. A wallet-only account made by `register` has no GitHub linked;
+   link GitHub on its profile (or sign in with GitHub) before submitting. Make
+   the repo public and check that someone who isn't signed in as you can open it.
+
+3. **Bundle the AI transcripts, then check the new bundle.** Include the session
+   logs that wrote and changed the work you're submitting:
+
+   ```sh
+   node cli/makefun.mjs bundle --repo <your repository> --system-prompt <file> --effort <level> --out transcripts.tar.gz
+   node cli/makefun.mjs check --kit . --repo <your repository> --transcripts transcripts.tar.gz
+   ```
+
+   The check must pass on this new bundle before you submit. If you change the
+   work afterward, make a new bundle and run the check again.
+
+4. **Submit the commit.** First, set the repo's GitHub **About** website to
+   `https://make.fun` and add the topic `makefun`. Commit the finished work and
+   replace `<sha>` below with that commit's identifier:
+
+   ```sh
+   node cli/makefun.mjs submit --competition bring-the-humans-02 --repo-url https://github.com/<owner>/<repo> --commit <sha> --title "<name>" --bundle transcripts.tar.gz --keypair wallet.json
+   ```
+
+   `--title` is the entry's public name: name what it does, never your handle or
+   repo name. Save the submission id printed by the command.
+
+5. **Follow your entry.** Replace `<id>` with that submission id:
+
+   ```sh
+   node cli/makefun.mjs status --submission <id>
+   ```
+
+   Plain `status` lists open competitions, entries, and prizes to claim:
+
+   ```sh
+   node cli/makefun.mjs status
+   ```
 
 For [Bring the humans again][bounty], the repo must also have been created after
 the competition opened, carry a license approved by the Open Source Initiative
@@ -131,10 +203,25 @@ Here's the prize schedule for Bring the humans again. Amounts are per place.
 
 There are **50 paid places** and **$1,000 USDC** in total bounty prizes.
 
-If you win, follow make.fun's instructions to claim your reward. When reading
-those instructions, look for both the asset (**USDC**) and the network
-(**Solana**). If you're asked for a receiving address, check that your wallet can
-receive USDC on Solana, then double-check the address before providing it.
+After results, run this from the competition kit directory:
+
+```sh
+node cli/makefun.mjs status
+```
+
+It lists prizes to claim with their claim ids. The prize pays the wallet that
+signed your entry, so have that Solana wallet ready and able to receive **USDC
+on Solana** before you claim. Replace `<id>` with the claim id, and replace
+`yes|no` with `yes` if you are a US person or `no` if you aren't:
+
+```sh
+node cli/makefun.mjs claim --claim <id> --keypair wallet.json --us-person yes|no
+```
+
+US persons over the threshold also file a W-9 with `--tax-form`. The wallet
+needs a little SOL for the claim fee/rent, or you can add `--sol-from-prize` to
+pay it from the prize. If the prize must pay a wallet you cannot sign with,
+use `--pay-to <wallet> --accept-winner-agreement` instead of `--keypair wallet.json`.
 
 ## How referrals earn credit
 
@@ -152,10 +239,10 @@ account in the same browser while the competition is open. That signup can
 count if make.fun verifies it. If their browser saw a different code first and
 it is still bound, the later click doesn't change which code gets credit.
 
-Referrers earn $0.25 per verified signup for the first 20, plus more when their
-referrals win. If you share your link, give the recipient a reason to look. For
-example, point out a bounty they might find interesting and tell them the link
-credits your referral if their signup qualifies.
+Under make.fun's referral program, referrers earn $0.25 per verified signup for
+the first 20, plus more when their referrals win. If you share your link, give
+the recipient a reason to look. For example, point out a bounty they might find
+interesting and tell them the link credits your referral if their signup qualifies.
 
 ## Give your entry a better chance
 
@@ -184,8 +271,44 @@ The agent writes the project; you direct and review the work.
 
 ### What do I need to submit?
 
-A public GitHub repo and the AI transcripts that wrote the project. Check the
-brief for any additional requirements and how to supply both pieces.
+A public GitHub repo at a specific commit and the AI session logs bundled as
+`transcripts.tar.gz`. Use this order, running commands from the competition kit
+directory and replacing the `<...>` placeholders:
+
+1. Create and protect `wallet.json` with the Node command and `chmod 600` in
+   [Package and submit the work](#package-and-submit-the-work), then sign in:
+
+   ```sh
+   node cli/makefun.mjs login --keypair wallet.json --origin https://make.fun
+   ```
+
+   Approve the printed link/code. To create a separate wallet-only account, use
+   `node cli/makefun.mjs register --keypair wallet.json --origin https://make.fun`
+   instead, then link GitHub on that account's make.fun profile before submitting.
+2. Confirm your make.fun profile shows the GitHub account that created the
+   public repo. Set the repo's GitHub About website to `https://make.fun` and add
+   the topic `makefun`.
+3. Bundle the recorded sessions and check that exact bundle; the check must pass:
+
+   ```sh
+   node cli/makefun.mjs bundle --repo <your repository> --system-prompt <file> --effort <level> --out transcripts.tar.gz
+   node cli/makefun.mjs check --kit . --repo <your repository> --transcripts transcripts.tar.gz
+   ```
+
+4. Submit the finished commit with a public title naming what the entry does,
+   never your handle or repo name:
+
+   ```sh
+   node cli/makefun.mjs submit --competition bring-the-humans-02 --repo-url https://github.com/<owner>/<repo> --commit <sha> --title "<name>" --bundle transcripts.tar.gz --keypair wallet.json
+   ```
+
+5. Follow the returned submission id; plain `status` also lists open
+   competitions, entries, and prizes to claim:
+
+   ```sh
+   node cli/makefun.mjs status --submission <id>
+   node cli/makefun.mjs status
+   ```
 
 ### When should I start saving AI transcripts?
 
